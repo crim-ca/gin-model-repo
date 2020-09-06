@@ -8,7 +8,7 @@ individual headers for more information.
 import logging
 
 import thelper.nn  # noqa: F401
-from thelper.nn.gin.net import EncoderDecoderNet  # noqa: F401
+from gin.net import EncoderDecoderNet  # noqa: F401
 
 
-logger = logging.getLogger("thelper.nn.gin")
+#logger = logging.getLogger("thelper.nn.gin")
