@@ -1,5 +1,7 @@
-
 import thelper
+from google_drive_downloader import GoogleDriveDownloader as gdd
+import os.path as osp
+import sys
 
 def update_class_mapping(class_mappings, model_task):
     # type: (List[Tuple[Union[str,int], Union[str,int]]], str, Optional[str]) -> None
@@ -22,3 +24,22 @@ def update_class_mapping(class_mappings, model_task):
     model_outputs_sorted_by_index = list(sorted(class_mapped.items(), key=lambda _map: _map[1]))
     setattr(model_task, "_class_names", [str(_map[0]) for _map in model_outputs_sorted_by_index])
     return model_task
+
+
+def maybe_download_and_extract(file_id, dest_path ):
+    filename = dest_path.split('/')[-1]
+    file_path = dest_path
+    download_dir= osp.dirname(osp.abspath(dest_path))
+    if not osp.isfile(dest_path):
+      gdd.download_file_from_google_drive(file_id= file_id, dest_path= file_path)
+      print("Download finished. Extracting files.")
+
+      if file_path.endswith(".zip"):
+          # Unpack the zip-file.
+          zipfile.ZipFile(file=file_path, mode="r").extractall(download_dir)
+      elif file_path.endswith((".tar.gz", ".tgz")):
+          # Unpack the tar-ball.
+          tarfile.open(name=file_path, mode="r:gz").extractall(download_dir)
+      print("Done.")
+    else:
+        print("Data has apparently already been downloaded and unpacked.")
