@@ -2,6 +2,11 @@ import thelper
 from google_drive_downloader import GoogleDriveDownloader as gdd
 import os.path as osp
 import sys
+from six.moves.urllib.parse import urlparse
+from six.moves.urllib.request import urlopen
+from io import BytesIO
+import six
+import ssl
 
 def update_class_mapping(class_mappings, model_task):
     # type: (List[Tuple[Union[str,int], Union[str,int]]], str, Optional[str]) -> None
@@ -24,6 +29,34 @@ def update_class_mapping(class_mappings, model_task):
     model_outputs_sorted_by_index = list(sorted(class_mapped.items(), key=lambda _map: _map[1]))
     setattr(model_task, "_class_names", [str(_map[0]) for _map in model_outputs_sorted_by_index])
     return model_task
+
+def load_model(model_file):
+    # type: (Union[Any, AnyStr]) -> Tuple[bool, CkptData, Optional[BytesIO], Optional[Exception]]
+    """
+    Tries to load a model checkpoint file from the file-like object, file path or URL.
+
+    :return: tuple of (success, data, buffer, exception) accordingly.
+    :raises: None (nothrow)
+    """
+    try:
+        model_buffer = model_file
+        if isinstance(model_file, six.string_types):
+            if urlparse(model_file).scheme:
+                no_ssl = ssl.create_default_context()
+                no_ssl.check_hostname = False
+                no_ssl.verify_mode = ssl.CERT_NONE
+                url_buffer = urlopen(model_file, context=no_ssl)
+                model_buffer = BytesIO(url_buffer.read())
+            else:
+                with open(model_file, 'rb') as f:
+                    model_buffer = BytesIO(f.read())
+        thelper.utils.bypass_queries = True     # avoid blocking ui query
+        model_checkpoint_info = thelper.utils.load_checkpoint(model_buffer)
+    except Exception as ex:
+        return False, {}, None, ex
+    if model_checkpoint_info:
+        return True, model_checkpoint_info, model_buffer, None
+    return False, {}, None, None
 
 
 def maybe_download_and_extract(file_id, dest_path ):
