@@ -367,7 +367,7 @@ class BatchTestPatchesBaseSegDatasetLoader(ImageFolderSegDataset):
     """
 
     # noinspection PyMissingConstructor
-    def __init__(self, dataset=None, transforms=None):
+    def __init__(self, dataset=None, transforms=None, tag = 'test'):
         if not (isinstance(dataset, dict) and len(dataset)):
             raise ValueError("Expected dataset parameters as configuration input.")
         thelper.data.Dataset.__init__(self, transforms=transforms, deepcopy=False)
@@ -388,7 +388,7 @@ class BatchTestPatchesBaseSegDatasetLoader(ImageFolderSegDataset):
         self.channels = channels if channels else [1, 2, 3]  # by default we take the first 3 channels
         for patch_path, patch_info in zip(dataset[DATASET_FILES_KEY],
                                           dataset[DATASET_DATA_KEY][DATASET_DATA_PATCH_KEY]):
-            if patch_info[DATASET_DATA_PATCH_SPLIT_KEY] == "test":
+            if patch_info[DATASET_DATA_PATCH_SPLIT_KEY] == tag:
                 # convert the dataset class ID into the model class ID using mapping, drop sample if not found
                 class_name = model_class_map.get(patch_info[DATASET_DATA_PATCH_CLASS_KEY])
                 if class_name is not None:
@@ -444,7 +444,7 @@ def get_dataset_classes(dataset):
     class_mapping = dict(zip(all_classes_names, all_classes_with_files.keys()))
     return class_mapping, all_classes_with_files, all_classes_names
 
-def adapt_dataset_for_model_task(model_task, dataset):
+def adapt_dataset_for_model_task(model_task, dataset, tag = 'test'):
     # type: (AnyTask, Dataset) -> JSON
     """
     Generates dataset parameter definition for loading from checkpoint configuration with ``thelper``.
@@ -544,7 +544,7 @@ def adapt_dataset_for_model_task(model_task, dataset):
         all_model_classes = set(class_mapped + all_model_ordering)
         samples_mapped = [s for s in samples_all if s[DATASET_DATA_PATCH_CLASS_KEY] in all_model_classes]
         # retain class Ids with test patches
-        classes_with_files = sorted(set([s["class"] for s in samples_mapped if s["split"] == "test"]))
+        classes_with_files = sorted(set([s["class"] for s in samples_mapped if s["split"] == tag]))
         if len(classes_with_files) == 0:
             raise ValueError("No test patches for the classes of interest!")
         all_test_patch_files = [s[DATASET_DATA_PATCH_CROPS_KEY][0]["path"] for s in samples_mapped]
