@@ -558,7 +558,7 @@ def adapt_dataset_for_model_task(model_task, dataset, tag = 'test'):
         model_task_name = fully_qualified_name(model_task)
         return {
             "type": MODEL_TASK_MAPPING[model_task_name][MAPPING_LOADER],
-            "params": {TEST_DATASET_KEY: dataset_params},
+            "params": {TEST_DATASET_KEY: dataset_params, 'tag': tag},
             "task": model_task
         }
     except Exception as exc:
