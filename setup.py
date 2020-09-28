@@ -35,11 +35,16 @@ setup(
     ],
     packages=find_packages(),
     zip_safe=False,
-    python_requires='>=3.6.*, <4',
+    python_requires='>=3.6.*,<4',
     install_requires=[
         'googledrivedownloader==0.4',
-        'numpy >= 1.11.1',
-        'matplotlib >= 1.5.1',
-        'thelper >=0.5,<0.6',
+        'numpy>=1.11.1',
+        'matplotlib>=1.5.1',
+        'pretrainedmodels==0.7.4',
+        'six',
+        # note: most dependencies that require special setup are handled by thelper (opencv, gdal)
+        'thelper>=0.5,<0.6',
+        'torch',
+        'torchvision>=0.6',
     ],
 )
