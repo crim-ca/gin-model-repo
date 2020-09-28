@@ -14,6 +14,7 @@ from copy import deepcopy
 import os
 import cv2
 import numpy as np
+import zipfile
 
 # keys used across methods to find matching configs, must be unique and non-conflicting with other sample keys
 IMAGE_DATA_KEY = "data"     # key used to store temporarily the loaded image data
