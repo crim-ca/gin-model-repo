@@ -1,0 +1,14 @@
+##IDE
+.idea
+.vscode
+
+## Build / Cache
+*egg-info
+*.egg[s]
+
+## Data
+data
+output
+*.ckpt
+*.pth
+*.yml
