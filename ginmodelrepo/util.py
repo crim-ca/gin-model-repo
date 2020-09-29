@@ -176,7 +176,11 @@ def fix_str_model_task(model_task):
             raise ValueError(f"Invalid input is not a literal string for model task parsing, got '{type(model_task)}'")
         params = model_task.split("(", 1)[-1].split(")", 1)[0]
         params = re.sub(r"(\w+)\s*=", r"'\1': ", params)
-        return ast.literal_eval(f"{{{params}}}")
+        param_dict = ast.literal_eval(f"{{{params}}}")
+        if not all([isinstance(name, str) for name in param_dict['class_names']]):
+            param_dict['class_names'] = {str(k): v for k, v in param_dict[
+                'class_names'].items()}  # some tasks are expecting class names as string
+        return param_dict
     except ValueError:
         raise   # failing ast converting raises ValueError
     except Exception as exc:
@@ -322,7 +326,7 @@ class ImageFolderSegDataset(thelper.data.SegmentationDataset):
             not_zero=np.count_nonzero(mask)
             #assert not_zero > 0
             mask = mask if mask.ndim == 2 else mask[:, :, 0] # masks saved with PIL have three bands
-            mask = (mask > 0) *255
+            #mask = (mask > 0) *255
             if False:
                 import matplotlib
                 #matplotlib.use('Agg')
