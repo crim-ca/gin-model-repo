@@ -326,7 +326,10 @@ class ImageFolderSegDataset(thelper.data.SegmentationDataset):
             not_zero=np.count_nonzero(mask)
             #assert not_zero > 0
             mask = mask if mask.ndim == 2 else mask[:, :, 0] # masks saved with PIL have three bands
-            #mask = (mask > 0) *255
+            if self.dontcare is not None:
+                mask = mask.astype(int)
+                mask[(mask <= 0)] = -1
+            mask[(mask > 0)] = sample[self.label_key]
             if False:
                 import matplotlib
                 #matplotlib.use('Agg')
@@ -359,7 +362,7 @@ class ImageFolderSegDataset(thelper.data.SegmentationDataset):
             sample = self.transforms(sample)
         return sample
 
-class BatchTestPatchesBaseSegDatasetLoader(ImageFolderSegDataset):
+class BatchTestPatchesBaseDatasetLoader(ImageFolderSegDataset):
     """
     Batch dataset parser that loads only patches from 'test' split and matching
     class IDs (or their parents) known by the model as defined in its ``task``.
@@ -371,7 +374,7 @@ class BatchTestPatchesBaseSegDatasetLoader(ImageFolderSegDataset):
     """
 
     # noinspection PyMissingConstructor
-    def __init__(self, dataset=None, transforms=None, tag = 'test'):
+    def __init__(self, dataset=None, transforms=None, tag = 'test', dontcare = None, channels = None):
         if not (isinstance(dataset, dict) and len(dataset)):
             raise ValueError("Expected dataset parameters as configuration input.")
         thelper.data.Dataset.__init__(self, transforms=transforms, deepcopy=False)
@@ -386,15 +389,68 @@ class BatchTestPatchesBaseSegDatasetLoader(ImageFolderSegDataset):
         self.meta_keys = [self.path_key, self.idx_key, self.mask_key, DATASET_DATA_PATCH_CROPS_KEY,
                           DATASET_DATA_PATCH_IMAGE_KEY, DATASET_DATA_PATCH_FEATURE_KEY]
         model_class_map = dataset[DATASET_DATA_KEY][DATASET_DATA_MODEL_MAPPING]
+        class_id_to_nodel_output = dataset[DATASET_DATA_KEY][DATASET_DATA_MODEL_MAPPING]
         sample_class_ids = set()
         samples = []
-        channels = dataset.get(DATASET_DATA_CHANNELS, None)  # FIXME: the user needs to specified the channels used by the model
-        self.channels = channels if channels else [1, 2, 3]  # by default we take the first 3 channels
+        self.dontcare = dontcare # dataset.get('dontcare', None)
+        # channels = dataset.get(DATASET_DATA_CHANNELS, None)
+        self.channels = channels # channels if channels else [1, 2, 3]  # by default we take the first 3 channels
         for patch_path, patch_info in zip(dataset[DATASET_FILES_KEY],
                                           dataset[DATASET_DATA_KEY][DATASET_DATA_PATCH_KEY]):
             if patch_info[DATASET_DATA_PATCH_SPLIT_KEY] == tag:
                 # convert the dataset class ID into the model class ID using mapping, drop sample if not found
                 class_name = model_class_map.get(patch_info[DATASET_DATA_PATCH_CLASS_KEY])
+                #nodel_output = class_id_to_nodel_output.get(class_name)
+                if class_name is not None:
+                    sample_class_ids.add(class_name)
+                    samples.append(deepcopy(patch_info))
+                    samples[-1][self.path_key] = os.path.join(self.root, patch_path)
+                    samples[-1][self.label_key] = class_name
+                    samples[-1][self.mask_path_key] = None
+        if not len(sample_class_ids):
+            raise ValueError("No patch/class could be retrieved from batch loading for specific model task.")
+        self.samples = samples
+        self.sample_class_ids = sample_class_ids
+
+class BatchTestPatchesBaseSegDatasetLoader(ImageFolderSegDataset):
+    """
+    Batch dataset parser that loads only patches from 'test' split and matching
+    class IDs (or their parents) known by the model as defined in its ``task``.
+
+    .. note::
+
+        Uses :class:`thelper.data.SegmentationDataset` ``__getitem__`` implementation to load image
+        from a folder, but overrides the ``__init__`` to adapt the configuration to batch format.
+    """
+
+    # noinspection PyMissingConstructor
+    def __init__(self, dataset=None, transforms=None, tag = 'test', dontcare = None, channels = None):
+        if not (isinstance(dataset, dict) and len(dataset)):
+            raise ValueError("Expected dataset parameters as configuration input.")
+        thelper.data.Dataset.__init__(self, transforms=transforms, deepcopy=False)
+        self.root = dataset["path"]
+        # keys matching dataset config for easy loading and referencing to same fields
+        self.image_key = IMAGE_DATA_KEY     # key employed by loader to extract image data (pixel values)
+        self.label_key = IMAGE_LABEL_KEY    # class id from API mapped to match model task
+        self.path_key = DATASET_DATA_PATCH_PATH_KEY  # actual file path of the patch
+        self.idx_key = DATASET_DATA_PATCH_INDEX_KEY  # increment for __getitem__
+        self.mask_key = DATASET_DATA_PATCH_MASK_KEY  # actual mask path of the patch
+        self.mask_path_key = DATASET_DATA_PATCH_MASK_PATH_KEY  # actual mask path of the patch
+        self.meta_keys = [self.path_key, self.idx_key, self.mask_key, DATASET_DATA_PATCH_CROPS_KEY,
+                          DATASET_DATA_PATCH_IMAGE_KEY, DATASET_DATA_PATCH_FEATURE_KEY]
+        model_class_map = dataset[DATASET_DATA_KEY][DATASET_DATA_MODEL_MAPPING]
+        class_id_to_nodel_output = dataset[DATASET_DATA_KEY][DATASET_DATA_MODEL_MAPPING]
+        sample_class_ids = set()
+        samples = []
+        self.dontcare = dontcare # dataset.get('dontcare', None)
+        # channels = dataset.get(DATASET_DATA_CHANNELS, None)
+        self.channels = channels # channels if channels else [1, 2, 3]  # by default we take the first 3 channels
+        for patch_path, patch_info in zip(dataset[DATASET_FILES_KEY],
+                                          dataset[DATASET_DATA_KEY][DATASET_DATA_PATCH_KEY]):
+            if patch_info[DATASET_DATA_PATCH_SPLIT_KEY] == tag:
+                # convert the dataset class ID into the model class ID using mapping, drop sample if not found
+                class_name = model_class_map.get(patch_info[DATASET_DATA_PATCH_CLASS_KEY])
+                #nodel_output = class_id_to_nodel_output.get(class_name)
                 if class_name is not None:
                     sample_class_ids.add(class_name)
                     samples.append(deepcopy(patch_info))
@@ -562,7 +618,7 @@ def adapt_dataset_for_model_task(model_task, dataset, tag = 'test'):
         model_task_name = fully_qualified_name(model_task)
         return {
             "type": MODEL_TASK_MAPPING[model_task_name][MAPPING_LOADER],
-            "params": {TEST_DATASET_KEY: dataset_params, 'tag': tag},
+            "params": {TEST_DATASET_KEY: dataset_params, 'channels': dataset_params.get('channels', None), 'dontcare': dataset_params.get('dontcare', None), 'tag': tag},
             "task": model_task
         }
     except Exception as exc:
@@ -573,7 +629,7 @@ def adapt_dataset_for_model_task(model_task, dataset, tag = 'test'):
 MODEL_TASK_MAPPING = {
     fully_qualified_name(thelper.tasks.classif.Classification): {
         MAPPING_TASK:   fully_qualified_name(thelper.tasks.classif.Classification),
-        MAPPING_LOADER: fully_qualified_name(BatchTestPatchesBaseSegDatasetLoader),
+        MAPPING_LOADER: fully_qualified_name(BatchTestPatchesBaseDatasetLoader),
         MAPPING_TESTER: fully_qualified_name(thelper.train.classif.ImageClassifTrainer),
     },
     fully_qualified_name(thelper.tasks.segm.Segmentation): {
