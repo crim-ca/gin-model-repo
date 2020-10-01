@@ -374,7 +374,7 @@ def get_dataset_classes(dataset, split = 'test'):
     """
     
     samples_all = dataset[DATASET_DATA_KEY][DATASET_DATA_PATCH_KEY]  # type: JSON
-    all_classes_with_files = Counter([s["class"] for s in samples_all if s["class"]==split])
+    all_classes_with_files = Counter([s["class"] for s in samples_all if s["split"]==split])
     all_child_classes = set()           # only taxonomy child classes IDs
     all_classes_mapping = dict()        # child->parent taxonomy class ID mapping
     all_child_names = dict()
