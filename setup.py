@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='ginmodelrepo',
-    version='1.0.0',
+    version='1.0.1',
     url='https://github.com/crim-ca/gin-model-repo.git',
     project_urls={
         "geoimagenet": "https://geoimagenet.ca",
@@ -43,7 +43,7 @@ setup(
         'pretrainedmodels==0.7.4',
         'six',
         # note: most dependencies that require special setup are handled by thelper (opencv, gdal)
-        'thelper>=0.5,<0.6',
+        'thelper>=0.5',
         'torch',
         'torchvision>=0.6',
     ],
