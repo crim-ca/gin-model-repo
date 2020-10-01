@@ -364,7 +364,7 @@ class BatchTestPatchesBaseSegDatasetLoader(ImageFolderSegDataset):
 
 
 
-def get_dataset_classes(dataset):
+def get_dataset_classes(dataset, split = 'test'):
     # type: (Dataset) -> Tuple[Dict, Dict, List]
     """
     Generates the list of classes with files.
@@ -374,7 +374,7 @@ def get_dataset_classes(dataset):
     """
     
     samples_all = dataset[DATASET_DATA_KEY][DATASET_DATA_PATCH_KEY]  # type: JSON
-    all_classes_with_files = Counter([s["class"] for s in samples_all])
+    all_classes_with_files = Counter([s["class"] for s in samples_all if s["class"]==split])
     all_child_classes = set()           # only taxonomy child classes IDs
     all_classes_mapping = dict()        # child->parent taxonomy class ID mapping
     all_child_names = dict()
@@ -395,7 +395,8 @@ def get_dataset_classes(dataset):
     # print("Taxonomy class mapping:  {}".format(all_classes_mapping))
     all_classes_names = [all_child_names[c] for c in all_classes_with_files]
 
-    print("Dataset class id and occurences: {}".format(all_classes_with_files))
+    print("Dataset class id and occurences for {}: {}".format(split,all_classes_with_files))
+
     print("Dataset class names: {}".format(all_classes_names))
     # print("Dataset class parents: {}".format(all_class_parents))
     class_mapping = dict(zip(all_classes_names, all_classes_with_files.keys()))
