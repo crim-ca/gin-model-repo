@@ -200,8 +200,8 @@ class ImageFolderSegDataset(thelper.data.SegmentationDataset):
         rasterfile = gdal.Open(image_path, gdal.GA_ReadOnly)
         # image = cv2.imread(image_path)
         image = []
-        for raster_band_idx in self.channels:
-            curr_band = rasterfile.GetRasterBand(raster_band_idx)  # offset, starts at 1
+        for raster_band_idx in range(rasterfile.RasterCount):
+            curr_band = rasterfile.GetRasterBand(raster_band_idx+1)  # offset, starts at 1
             band_array = curr_band.ReadAsArray()
             band_nodataval = curr_band.GetNoDataValue()
             # band_ma = np.ma.array(band_array.astype(np.float32))
