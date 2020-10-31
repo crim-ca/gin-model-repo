@@ -361,46 +361,63 @@ class BatchTestPatchesBaseSegDatasetLoader(ImageFolderSegDataset):
         self.samples = samples
         self.sample_class_ids = sample_class_ids
 
-
-
-
-def get_dataset_classes(dataset, split = 'test'):
-    # type: (Dataset) -> Tuple[Dict, Dict, List]
+def get_dataset_classes(dataset, min_occurence = 0):
+    # type: (Dataset) -> Tuple[Dict, Dict, List, Dict, Dict]
     """
-    Generates the list of classes with files.
+    Generates a training set the meta.json file.
 
-    :param model_task: original task defined by the model training which specifies known classes.
-    :return: class_mapping, class ids, class names
+    :param dataset: original dictionary loaded from the meta.json file.
+    :param min_occurence: minimal number of samples per class (Default: 0).
+    :return: class_mapping, all_classes_with_files, all_classes_names, classes_per_taxo, datasets_per_taxo
     """
     
     samples_all = dataset[DATASET_DATA_KEY][DATASET_DATA_PATCH_KEY]  # type: JSON
-    all_classes_with_files = Counter([s["class"] for s in samples_all if s["split"]==split])
+
     all_child_classes = set()           # only taxonomy child classes IDs
     all_classes_mapping = dict()        # child->parent taxonomy class ID mapping
     all_child_names = dict()
-    def find_class_mapping(taxonomy_class, parent=None):
+    all_child_taxo = dict()
+    all_classes_with_files = Counter([s["class"] for s in samples_all])
+    def find_class_mapping(taxonomy_class, parent=None, name=None):
         """Finds existing mappings defined by taxonomy."""
         children = taxonomy_class.get("children")
         class_id = taxonomy_class.get("id")
-        name = taxonomy_class.get("name_en")
+        if not name and parent:
+            name = taxonomy_class.get("name_en")
+        elif name:
+            name = '{} {}'.format(name, taxonomy_class.get("name_en"))
+        taxo_id = taxonomy_class.get("taxonomy_id")
         if children:
             for child in children:
                 find_class_mapping(child, taxonomy_class)
         elif class_id in all_classes_with_files:
             all_child_classes.add(class_id)
             all_child_names[class_id] = name
+            all_child_taxo[class_id] = taxo_id
         all_classes_mapping[class_id] = None if not parent else parent.get("id")
     for taxo in dataset[DATASET_DATA_KEY][DATASET_DATA_TAXO_KEY]:
         find_class_mapping(taxo)
     # print("Taxonomy class mapping:  {}".format(all_classes_mapping))
     all_classes_names = [all_child_names[c] for c in all_classes_with_files]
+    classes_per_taxo = dict()
+    datasets_per_taxo = dict()
+    for taxo in dataset[DATASET_DATA_KEY][DATASET_DATA_TAXO_KEY]:
+        datasets_per_taxo[taxo['name_en']] = {'data': [], 'class_mapping': {}}
+        print("Taxonomie name: {}".format(taxo['name_en']))
 
-    print("Dataset class id and occurences for {}: {}".format(split,all_classes_with_files))
+        sub_samples_nosplit = [s for s in samples_all if all_child_taxo[s["class"]] == taxo['taxonomy_id']]
+        sub_samples_train = [s for s in sub_samples_nosplit if s["split"] == 'train']
+        temp = Counter([s["class"] for s in sub_samples_train])
+
+        datasets_per_taxo[taxo['name_en']]['data'] = [s for s in sub_samples_nosplit if temp[s["class"]] > min_occurence]
+        datasets_per_taxo[taxo['name_en']]['class_mapping'] = {all_child_names[s["class"]]: s["class"] for s in datasets_per_taxo[taxo['name_en']]['data']}
+        classes_per_taxo[taxo['name_en']] = Counter([s["class"] for s in datasets_per_taxo[taxo['name_en']]['data'] if all_child_taxo[s["class"]] == taxo['taxonomy_id']])
+
 
     print("Dataset class names: {}".format(all_classes_names))
     # print("Dataset class parents: {}".format(all_class_parents))
     class_mapping = dict(zip(all_classes_names, all_classes_with_files.keys()))
-    return class_mapping, all_classes_with_files, all_classes_names
+    return class_mapping, all_classes_with_files, all_classes_names, classes_per_taxo, datasets_per_taxo
 
 def adapt_dataset_for_model_task(model_task, dataset, split = 'test'):
     # type: (AnyTask, Dataset) -> JSON
