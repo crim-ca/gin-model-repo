@@ -286,6 +286,7 @@ class BatchTestPatchesBaseDatasetLoader(ImageFolderSegDataset):
         self.meta_keys = [self.path_key, self.idx_key, self.mask_key, DATASET_DATA_PATCH_CROPS_KEY,
                           DATASET_DATA_PATCH_IMAGE_KEY, DATASET_DATA_PATCH_FEATURE_KEY]
         model_class_map = dataset[DATASET_DATA_KEY][DATASET_DATA_MODEL_MAPPING]
+        model_class_map = {int(k): v for k, v in model_class_map.items()}  # forcing the key to be integer
         class_id_to_nodel_output = dataset[DATASET_DATA_KEY][DATASET_DATA_MODEL_MAPPING]
         sample_class_ids = set()
         samples = []
@@ -336,6 +337,7 @@ class BatchTestPatchesBaseSegDatasetLoader(ImageFolderSegDataset):
         self.meta_keys = [self.path_key, self.idx_key, self.mask_key, DATASET_DATA_PATCH_CROPS_KEY,
                           DATASET_DATA_PATCH_IMAGE_KEY, DATASET_DATA_PATCH_FEATURE_KEY]
         model_class_map = dataset[DATASET_DATA_KEY][DATASET_DATA_MODEL_MAPPING]
+        model_class_map = {int(k): v for k,v in model_class_map.items()} # forcing the key to be integer
         class_id_to_nodel_output = dataset[DATASET_DATA_KEY][DATASET_DATA_MODEL_MAPPING]
         sample_class_ids = set()
         samples = []
